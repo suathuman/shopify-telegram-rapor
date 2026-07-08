@@ -21,20 +21,6 @@ jobs:
       - name: Bagimliliklari kur
         run: pip install -r requirements.txt
 
-      - name: Debug secret uzunluklari
-        env:
-          SHOPIFY_STORE_DOMAIN: ${{ secrets.SHOPIFY_STORE_DOMAIN }}
-          SHOPIFY_CLIENT_ID: ${{ secrets.SHOPIFY_CLIENT_ID }}
-          SHOPIFY_CLIENT_SECRET: ${{ secrets.SHOPIFY_CLIENT_SECRET }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          echo "STORE_DOMAIN uzunluk: ${#SHOPIFY_STORE_DOMAIN}"
-          echo "CLIENT_ID uzunluk: ${#SHOPIFY_CLIENT_ID}"
-          echo "CLIENT_SECRET uzunluk: ${#SHOPIFY_CLIENT_SECRET}"
-          echo "BOT_TOKEN uzunluk: ${#TELEGRAM_BOT_TOKEN}"
-          echo "CHAT_ID uzunluk: ${#TELEGRAM_CHAT_ID}"
-
       - name: Raporu gonder
         env:
           SHOPIFY_STORE_DOMAIN: ${{ secrets.SHOPIFY_STORE_DOMAIN }}
