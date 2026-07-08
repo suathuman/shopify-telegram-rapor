@@ -17,19 +17,30 @@ GitHub Actions (her gun 08:00 TR) --> report.py --> Shopify Admin API'den veri c
 
 ## Kurulum Adım Adım
 
-### 1) Shopify Custom App Oluştur
+### 1) Shopify Custom App Oluştur (Dev Dashboard)
 
-1. Shopify Admin paneline gir → **Settings → Apps and sales channels → Develop apps**.
-2. "Allow custom app development" kapalıysa aç.
-3. **Create an app** → bir isim ver (örn. `Performans Raporu Botu`).
-4. **Configure Admin API scopes** kısmında şu izinleri aç:
-   - `read_orders`
-   - `read_products`
-   - `read_inventory`
-   - `read_analytics` (varsa; dönüşüm oranı/trafik verisi için)
-5. **Install app** butonuna bas, ardından **Admin API access token**'ı kopyala
-   (`shpat_...` ile başlar — sadece bir kere gösterilir, kaydet).
-6. Mağaza domainini not et: `magazaadi.myshopify.com` (tarayıcı adres çubuğundan görebilirsin).
+Shopify artık custom app'leri **Dev Dashboard** üzerinden oluşturuyor (eski
+"Settings → Develop apps" akışı yeni mağazalarda kapalı olabilir).
+
+1. Mağaza admin panelinde **Settings → Apps and sales channels → Develop apps**'e git
+   — seni otomatik **Dev Dashboard**'a yönlendirebilir, sorun değil.
+2. **Create an app** → bir isim ver (örn. `Performans Raporu Botu`).
+3. Uygulama sayfasında **Ayarlar (Settings)** sekmesine git → **Uygulamayı yükle**
+   diyerek uygulamayı kendi mağazana kur.
+4. Yine **Ayarlar** içinde (ya da "Configuration"da) **Kapsamlar (Scopes)** alanına
+   şunu virgülle ayırarak yaz:
+   ```
+   read_orders,read_products,read_inventory,read_analytics
+   ```
+   (`read_all_orders` gibi özel/onay gerektiren scope'ları KULLANMA — reddedilir.)
+5. Kaydet. **İstemci Kimliği (Client ID)** ve **Gizli anahtar (Client Secret,
+   `shpss_...`)** değerlerini kopyala — bunlar `SHOPIFY_CLIENT_ID` ve
+   `SHOPIFY_CLIENT_SECRET` olarak kullanılacak.
+6. Mağaza domainini not et: `magazaadi.myshopify.com`.
+
+`report.py` her çalıştığında bu Client ID + Client Secret ile (client credentials
+grant) 24 saatlik geçici bir Admin API access token alır — statik bir `shpat_`
+token'ı elle kopyalamana gerek yok.
 
 ### 2) Telegram Bot Oluştur
 
@@ -51,14 +62,15 @@ Bu klasördeki dosyaları bir GitHub reposuna push et (henüz yapılmadıysa bir
 ### 4) GitHub Secrets Ekle
 
 Repo sayfasında **Settings → Secrets and variables → Actions → New repository secret**
-ile şu 4 secret'ı ekle:
+ile şu 5 secret'ı ekle:
 
-| Secret adı              | Değer                                   |
-|--------------------------|------------------------------------------|
-| `SHOPIFY_STORE_DOMAIN`   | `magazaadi.myshopify.com`                |
-| `SHOPIFY_ACCESS_TOKEN`   | Adım 1'de aldığın `shpat_...` token      |
-| `TELEGRAM_BOT_TOKEN`     | Adım 2'de aldığın bot token               |
-| `TELEGRAM_CHAT_ID`       | Adım 2'de bulduğun chat id                |
+| Secret adı               | Değer                                     |
+|---------------------------|--------------------------------------------|
+| `SHOPIFY_STORE_DOMAIN`    | `magazaadi.myshopify.com`                  |
+| `SHOPIFY_CLIENT_ID`       | Adım 1'de aldığın İstemci Kimliği          |
+| `SHOPIFY_CLIENT_SECRET`   | Adım 1'de aldığın Gizli anahtar (`shpss_...`) |
+| `TELEGRAM_BOT_TOKEN`      | Adım 2'de aldığın bot token                 |
+| `TELEGRAM_CHAT_ID`        | Adım 2'de bulduğun chat id                  |
 
 ### 5) Test Et
 
@@ -76,7 +88,8 @@ Her şey doğruysa, sistem artık her gün otomatik olarak TR saatiyle 08:00'de 
 pip install -r requirements.txt
 
 export SHOPIFY_STORE_DOMAIN="magazaadi.myshopify.com"
-export SHOPIFY_ACCESS_TOKEN="shpat_..."
+export SHOPIFY_CLIENT_ID="..."
+export SHOPIFY_CLIENT_SECRET="shpss_..."
 export TELEGRAM_BOT_TOKEN="..."
 export TELEGRAM_CHAT_ID="..."
 

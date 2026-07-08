@@ -7,10 +7,16 @@ Bu script:
 3) Sonucu Telegram'a mesaj olarak gonderir
 
 Gerekli ortam degiskenleri (GitHub Actions secrets uzerinden gelir):
-  SHOPIFY_STORE_DOMAIN   -> orn: mystore.myshopify.com
-  SHOPIFY_ACCESS_TOKEN   -> orn: shpat_xxxxxxxxxxxx
-  TELEGRAM_BOT_TOKEN     -> BotFather'dan alinan token
-  TELEGRAM_CHAT_ID       -> mesajin gonderilecegi chat/kanal id'si
+  SHOPIFY_STORE_DOMAIN     -> orn: mystore.myshopify.com
+  SHOPIFY_CLIENT_ID        -> Dev Dashboard'daki uygulamanin Istemci Kimligi
+  SHOPIFY_CLIENT_SECRET    -> Dev Dashboard'daki uygulamanin Gizli anahtari (shpss_...)
+  TELEGRAM_BOT_TOKEN       -> BotFather'dan alinan token
+  TELEGRAM_CHAT_ID         -> mesajin gonderilecegi chat/kanal id'si
+
+Shopify custom app'ler artik Dev Dashboard uzerinden olusturuluyor ve statik bir
+Admin API token gostermiyor. Bunun yerine "client credentials grant" ile her
+calistirmada Client ID + Client Secret kullanilarak 24 saatlik gecici bir
+Admin API access token aliniyor (bkz. get_shopify_access_token).
 """
 
 import os
@@ -21,7 +27,8 @@ from datetime import datetime, timedelta, timezone
 import requests
 
 SHOPIFY_STORE_DOMAIN = os.environ.get("SHOPIFY_STORE_DOMAIN", "")
-SHOPIFY_ACCESS_TOKEN = os.environ.get("SHOPIFY_ACCESS_TOKEN", "")
+SHOPIFY_CLIENT_ID = os.environ.get("SHOPIFY_CLIENT_ID", "")
+SHOPIFY_CLIENT_SECRET = os.environ.get("SHOPIFY_CLIENT_SECRET", "")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
@@ -34,7 +41,8 @@ def require_env():
         name
         for name, value in [
             ("SHOPIFY_STORE_DOMAIN", SHOPIFY_STORE_DOMAIN),
-            ("SHOPIFY_ACCESS_TOKEN", SHOPIFY_ACCESS_TOKEN),
+            ("SHOPIFY_CLIENT_ID", SHOPIFY_CLIENT_ID),
+            ("SHOPIFY_CLIENT_SECRET", SHOPIFY_CLIENT_SECRET),
             ("TELEGRAM_BOT_TOKEN", TELEGRAM_BOT_TOKEN),
             ("TELEGRAM_CHAT_ID", TELEGRAM_CHAT_ID),
         ]
@@ -45,9 +53,28 @@ def require_env():
         sys.exit(1)
 
 
+def get_shopify_access_token():
+    """Client credentials grant ile gecici bir Admin API access token alir."""
+    url = f"https://{SHOPIFY_STORE_DOMAIN}/admin/oauth/access_token"
+    response = requests.post(
+        url,
+        json={
+            "client_id": SHOPIFY_CLIENT_ID,
+            "client_secret": SHOPIFY_CLIENT_SECRET,
+            "grant_type": "client_credentials",
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()["access_token"]
+
+
+_shopify_access_token = None
+
+
 def shopify_get(path, params=None):
     url = f"https://{SHOPIFY_STORE_DOMAIN}/admin/api/{SHOPIFY_API_VERSION}/{path}"
-    headers = {"X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN}
+    headers = {"X-Shopify-Access-Token": _shopify_access_token}
     response = requests.get(url, headers=headers, params=params, timeout=30)
     response.raise_for_status()
     return response.json()
@@ -174,7 +201,15 @@ def send_telegram_message(text):
 
 
 def main():
+    global _shopify_access_token
     require_env()
+
+    try:
+        _shopify_access_token = get_shopify_access_token()
+    except requests.RequestException as exc:
+        print(f"Shopify access token alinirken hata: {exc}", file=sys.stderr)
+        sys.exit(1)
+
     try:
         orders = fetch_last_24h_orders()
     except requests.RequestException as exc:
